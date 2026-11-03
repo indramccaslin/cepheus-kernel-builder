@@ -151,7 +151,7 @@ jobs:
             KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion")
 
           "${MAKE_CMD[@]}" -j$(nproc) Image.gz-dtb
-          ls -l arch/arm64/boot/Image.gz-dtb
+          ls -l out/arch/arm64/boot/Image.gz-dtb
 
       - name: Package AnyKernel3
         run: |
