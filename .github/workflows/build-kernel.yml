@@ -111,7 +111,7 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             CLANG_TRIPLE=aarch64-linux-gnu- AR=llvm-ar LD=ld.lld NM=llvm-nm \
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
-            KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto" \
+            KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion" \
             -j$(nproc) Image.gz-dtb
 
       - name: Package AnyKernel3
