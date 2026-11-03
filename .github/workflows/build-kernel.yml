@@ -63,7 +63,7 @@ jobs:
           grep -q susfs fs/Makefile
           grep -q kernelsu drivers/Makefile
           echo "KSU + SUSFS patches applied and verified"
-      - name: Restrict DTBO to cepheus only
+      - name: Select base DTBs (generic sm8150, like 3.6)
         if: ${{ inputs.target == 'port' }}
         run: |
           cd kernel
@@ -74,18 +74,15 @@ jobs:
           end = next(i for i, l in enumerate(src) if l.startswith('endif # CONFIG_MACH_XIAOMI_SM8150'))
           block = [
               'ifeq ($(CONFIG_MACH_XIAOMI_SM8150),y)\n',
-              'ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)\n',
-              '\tdtbo-$(CONFIG_ARCH_SM8150) += cepheus-sm8150-overlay.dtbo\n',
-              '\n',
-              'cepheus-sm8150-overlay.dtbo-base := sm8150-xiaomi.dtb sm8150-v2-xiaomi.dtb sm8150p-xiaomi.dtb sm8150p-v2-xiaomi.dtb\n',
-              'endif\n',
+              'dtb-$(CONFIG_ARCH_SM8150) += sm8150.dtb sm8150-v2.dtb sm8150p.dtb sm8150p-v2.dtb\n',
               'endif # CONFIG_MACH_XIAOMI_SM8150\n',
           ]
           open(p, 'w').writelines(src[:start] + block + src[end + 1:])
           EOF
-          grep -q "cepheus-sm8150-overlay.dtbo" arch/arm64/boot/dts/qcom/Makefile
+          grep -q "sm8150p-v2.dtb" arch/arm64/boot/dts/qcom/Makefile
           ! grep -q "andromeda" arch/arm64/boot/dts/qcom/Makefile
-          echo "DTBO restricted to cepheus"
+          ! grep -q "cepheus-sm8150-overlay.dtbo" arch/arm64/boot/dts/qcom/Makefile
+          echo "Base DTBs set to 4 generic sm8150 variants (no overlays)"
 
       - name: Setup Clang r584948 (matches 3.6 build)
         run: |
@@ -111,7 +108,9 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          ulimit -s unlimited || ulimit -s 65536 || true
+          ulimit -H -s unlimited 2>/dev/null || sudo prlimit --stack=unlimited:unlimited --pid $$ 2>/dev/null || true
+          ulimit -s unlimited 2>/dev/null || true
+          echo "ulimit -s = $(ulimit -s), ARG_MAX = $(getconf ARG_MAX), env bytes = $(env | wc -c)"
           export PATH=${{ github.workspace }}/clang/bin:$PATH
           echo "PATH is $PATH"
           which clang
@@ -143,12 +142,17 @@ jobs:
           export KBUILD_BUILD_USER="build-user"
           export KBUILD_BUILD_HOST="build-host"
 
-          make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+          MAKE_CMD=(make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             CLANG_TRIPLE=aarch64-linux-gnu- AR=llvm-ar LD=ld.lld NM=llvm-nm \
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
-            KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion" \
-            -j$(nproc) Image.gz-dtb
+            KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion")
+
+          echo "=== wlan.o link command diagnostic ==="
+          "${MAKE_CMD[@]}" -n drivers/staging/qcacld-3.0/wlan.o 2>/dev/null | \
+            awk '{if(length($0)>m){m=length($0);l=$0}} END{print "MAX_CMD_LEN="m; print "HEAD="substr(l,1,300)}'
+
+          "${MAKE_CMD[@]}" -j$(nproc) Image.gz-dtb
 
       - name: Package AnyKernel3
         run: |
