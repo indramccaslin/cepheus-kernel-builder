@@ -53,12 +53,16 @@ jobs:
           ln -sfn ../../KernelSU-Next/kernel kernel/drivers/kernelsu
 
       - name: Apply KSU/SUSFS patches (port target only)
+        if: ${{ inputs.target == 'port' }}
         run: |
           cd kernel
-          curl -sL -o /tmp/0001.patch https://raw.githubusercontent.com/Lemonisniket/android_kernel_xiaomi_sm8150/bka-inf/kernel_patches/0001-Initialize-for-KernelSU-Next-min-scope-syscall-hooks.patch
-          curl -sL -o /tmp/0002.patch https://raw.githubusercontent.com/Lemonisniket/android_kernel_xiaomi_sm8150/bka-inf/kernel_patches/0002-Patch-susfs-1.5.8.patch
-          git apply --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig /tmp/0001.patch || true
-          git apply --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig /tmp/0002.patch || true
+          patch -p1 --fuzz=3 --no-backup-if-mismatch < ../0001-Initialize-for-KernelSU-Next-min-scope-syscall-hooks.filtered.patch
+          patch -p1 --fuzz=3 --no-backup-if-mismatch < ../0002-Patch-susfs-1.5.8.filtered.patch
+          test -f fs/susfs.c
+          test -f include/linux/susfs.h
+          grep -q susfs fs/Makefile
+          grep -q kernelsu drivers/Makefile
+          echo "KSU + SUSFS patches applied and verified"
       - name: Setup Clang r584948 (matches 3.6 build)
         run: |
           mkdir -p clang
