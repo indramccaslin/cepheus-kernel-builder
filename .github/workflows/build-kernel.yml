@@ -92,13 +92,13 @@ jobs:
           mkdir -p clang
           cd clang
           URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/clang-r584948.tar.gz"
-          for i in $(seq 1 10); do
-            curl -fL -C - --retry 5 --retry-delay 5 --retry-all-errors -o clang.tar.gz "$URL" || true
-            if gzip -t clang.tar.gz 2>/dev/null; then
+          for i in $(seq 1 8); do
+            rm -f clang.tar.gz
+            if curl -fL --http1.1 --retry 5 --retry-delay 5 --retry-all-errors --max-time 1800 -o clang.tar.gz "$URL" && gzip -t clang.tar.gz 2>/dev/null; then
               echo "archive OK (attempt $i)"
               break
             fi
-            echo "archive incomplete, retrying (attempt $i)"
+            echo "download failed/truncated, retrying (attempt $i)"
             sleep 5
           done
           gzip -t clang.tar.gz
