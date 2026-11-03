@@ -72,7 +72,7 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/clang/clang-r596125/bin:$PATH
           
           if [ "${{ inputs.target }}" = "port" ]; then
-            make O=out ARCH=arm64 sm8150-perf_defconfig
+            make O=out ARCH=arm64 vendor/sm8150-perf_defconfig
             scripts/config --file out/.config \
               -e KSU \
               -d KSU_KPROBES_HOOK \
