@@ -69,7 +69,14 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          export PATH=$GITHUB_WORKSPACE/clang/clang-r596125/bin:$PATH
+          export PATH=$(pwd)/../clang/bin:$PATH
+          export PATH=/home/runner/work/cepheus-kernel-builder/cepheus-kernel-builder/clang/bin:$PATH
+          # find actual clang bin dir
+          CLANG_BIN=$(find ../clang -type d -name "bin" | head -n 1)
+          export PATH=$CLANG_BIN:$PATH
+          echo "PATH is $PATH"
+          which clang
+          clang --version
           
           if [ "${{ inputs.target }}" = "port" ]; then
             make O=out ARCH=arm64 vendor/sm8150-perf_defconfig
