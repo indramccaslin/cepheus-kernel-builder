@@ -61,8 +61,18 @@ jobs:
           git apply --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig /tmp/0002.patch || true
       - name: Setup Clang r596125
         run: |
-          git clone --depth=1 -b mirror-goog-llvm-r596125-release https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang || \
-          git clone --depth=1 https://github.com/jaymvictorino/clang-r596125-mirror.git clang
+          mkdir -p clang
+          cd clang
+          curl -LO https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/mirror-goog-llvm-r596125-release/clang-r596125.tar.gz || true
+          if [ ! -f clang-r596125.tar.gz ]; then
+            curl -LO https://github.com/jaymvictorino/clang-r596125-mirror/raw/main/clang-r596125.tar.gz || true
+          fi
+          if [ -f clang-r596125.tar.gz ]; then
+            tar -xzf clang-r596125.tar.gz
+          else
+            git clone --depth=1 https://github.com/tiann/clang-r584948.git .
+          fi
+          cd ..
 
       - name: Build kernel
         run: |
@@ -70,8 +80,12 @@ jobs:
           export PATH=$(pwd)/../clang/bin:$PATH
           export PATH=/home/runner/work/cepheus-kernel-builder/cepheus-kernel-builder/clang/bin:$PATH
           # find actual clang bin dir
-          export PATH=${{ github.workspace }}/clang/bin:$PATH
+          export PATH=${{ github.workspace }}/clang/bin:${{ github.workspace }}/clang:$PATH
           echo "PATH is $PATH"
+          find ${{ github.workspace }}/clang -maxdepth 3 -name "clang"
+          CLANG_BIN_DIR=$(dirname $(find ${{ github.workspace }}/clang -maxdepth 3 -name "clang" | head -n 1))
+          export PATH=$CLANG_BIN_DIR:$PATH
+          echo "Final PATH: $PATH"
           which clang
           clang --version
           
