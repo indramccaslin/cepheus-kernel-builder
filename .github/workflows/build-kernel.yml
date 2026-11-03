@@ -69,10 +69,19 @@ jobs:
           cd kernel
           python3 - << 'EOF'
           p = 'arch/arm64/boot/dts/qcom/Makefile'
-          bad = ('andromeda', 'crux', 'nabu', 'raphael', 'vayu')
-          lines = open(p).read().splitlines(True)
-          out = [ln for ln in lines if not (('overlay' in ln) and any(b in ln for b in bad))]
-          open(p, 'w').writelines(out)
+          src = open(p).read().splitlines(True)
+          start = next(i for i, l in enumerate(src) if l.startswith('ifeq ($(CONFIG_MACH_XIAOMI_SM8150),y)'))
+          end = next(i for i, l in enumerate(src) if l.startswith('endif # CONFIG_MACH_XIAOMI_SM8150'))
+          block = [
+              'ifeq ($(CONFIG_MACH_XIAOMI_SM8150),y)\n',
+              'ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)\n',
+              '\tdtbo-$(CONFIG_ARCH_SM8150) += cepheus-sm8150-overlay.dtbo\n',
+              '\n',
+              'cepheus-sm8150-overlay.dtbo-base := sm8150-xiaomi.dtb sm8150-v2-xiaomi.dtb sm8150p-xiaomi.dtb sm8150p-v2-xiaomi.dtb\n',
+              'endif\n',
+              'endif # CONFIG_MACH_XIAOMI_SM8150\n',
+          ]
+          open(p, 'w').writelines(src[:start] + block + src[end + 1:])
           EOF
           grep -q "cepheus-sm8150-overlay.dtbo" arch/arm64/boot/dts/qcom/Makefile
           ! grep -q "andromeda" arch/arm64/boot/dts/qcom/Makefile
