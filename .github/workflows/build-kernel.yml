@@ -133,7 +133,9 @@ jobs:
               -e KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS \
               -d CONFIG_LOCALVERSION_AUTO \
               -d MODULE_SIG \
-              -d MODULE_SIG_FORCE
+              -d MODULE_SIG_FORCE \
+              -d LTO \
+              -d LTO_CLANG
             make O=out ARCH=arm64 olddefconfig
           else
             make O=out ARCH=arm64 cepheus_defconfig
@@ -148,11 +150,8 @@ jobs:
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
             KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion")
 
-          echo "=== wlan.o link command diagnostic ==="
-          "${MAKE_CMD[@]}" -n drivers/staging/qcacld-3.0/wlan.o 2>/dev/null | \
-            awk '{if(length($0)>m){m=length($0);l=$0}} END{print "MAX_CMD_LEN="m; print "HEAD="substr(l,1,300)}'
-
           "${MAKE_CMD[@]}" -j$(nproc) Image.gz-dtb
+          ls -l arch/arm64/boot/Image.gz-dtb
 
       - name: Package AnyKernel3
         run: |
