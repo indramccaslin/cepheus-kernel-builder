@@ -49,7 +49,8 @@ jobs:
         run: |
           git clone --depth=1 --branch susfs-integration https://github.com/Lemonisniket/KernelSU-Next.git KernelSU-Next
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git AnyKernel
-          ln -sfn ../KernelSU-Next/kernel kernel/drivers/kernelsu
+          rm -rf kernel/drivers/kernelsu
+          ln -sfn ../../KernelSU-Next/kernel kernel/drivers/kernelsu
 
       - name: Apply KSU/SUSFS patches (port target only)
         run: |
