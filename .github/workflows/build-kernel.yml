@@ -52,15 +52,12 @@ jobs:
           ln -sfn ../KernelSU-Next/kernel kernel/drivers/kernelsu
 
       - name: Apply KSU/SUSFS patches (port target only)
-        if: inputs.target == 'port'
         run: |
           cd kernel
-          for p in 0001-Initialize-for-KernelSU-Next-min-scope-syscall-hooks.patch 0002-Patch-susfs-1.5.8.patch; do
-            curl -sL -o /tmp/$p https://raw.githubusercontent.com/Lemonisniket/android_kernel_xiaomi_sm8150/bka-inf/kernel_patches/$p
-          done
-          patch -p1 --forward --fuzz=3 --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig < /tmp/0001-Initialize-for-KernelSU-Next-min-scope-syscall-hooks.patch
-          patch -p1 --forward --fuzz=3 --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig < /tmp/0002-Format-patch-susfs-1.5.8.patch || true
-
+          curl -sL -o /tmp/0001.patch https://raw.githubusercontent.com/Lemonisniket/android_kernel_xiaomi_sm8150/bka-inf/kernel_patches/0001-Initialize-for-KernelSU-Next-min-scope-syscall-hooks.patch
+          curl -sL -o /tmp/0002.patch https://raw.githubusercontent.com/Lemonisniket/android_kernel_xiaomi_sm8150/bka-inf/kernel_patches/0002-Patch-susfs-1.5.8.patch
+          git apply --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig /tmp/0001.patch || true
+          git apply --exclude=Makefile --exclude=arch/arm64/configs/cepheus_defconfig /tmp/0002.patch || true
       - name: Setup Clang r596125
         run: |
           git clone -n --depth=1 --filter=tree:0 -b mirror-goog-llvm-r596125-release --single-branch https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
