@@ -83,7 +83,8 @@ jobs:
           clang --version
           
           if [ "${{ inputs.target }}" = "port" ]; then
-            make O=out ARCH=arm64 vendor/sm8150-perf_defconfig
+            mkdir -p out
+            cp ../configs/cepheus-4.1.config out/.config
             scripts/config --file out/.config \
               -e KSU \
               -d KSU_KPROBES_HOOK \
