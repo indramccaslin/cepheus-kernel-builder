@@ -63,6 +63,21 @@ jobs:
           grep -q susfs fs/Makefile
           grep -q kernelsu drivers/Makefile
           echo "KSU + SUSFS patches applied and verified"
+      - name: Restrict DTBO to cepheus only
+        if: ${{ inputs.target == 'port' }}
+        run: |
+          cd kernel
+          python3 - << 'EOF'
+          p = 'arch/arm64/boot/dts/qcom/Makefile'
+          bad = ('andromeda', 'crux', 'nabu', 'raphael', 'vayu')
+          lines = open(p).read().splitlines(True)
+          out = [ln for ln in lines if not (('overlay' in ln) and any(b in ln for b in bad))]
+          open(p, 'w').writelines(out)
+          EOF
+          grep -q "cepheus-sm8150-overlay.dtbo" arch/arm64/boot/dts/qcom/Makefile
+          ! grep -q "andromeda" arch/arm64/boot/dts/qcom/Makefile
+          echo "DTBO restricted to cepheus"
+
       - name: Setup Clang r584948 (matches 3.6 build)
         run: |
           mkdir -p clang
@@ -77,6 +92,7 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
+          ulimit -s unlimited || ulimit -s 65536 || true
           export PATH=${{ github.workspace }}/clang/bin:$PATH
           echo "PATH is $PATH"
           which clang
