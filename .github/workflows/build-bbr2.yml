@@ -23,6 +23,17 @@ jobs:
           git clone --depth=1 --branch "${{ inputs.kernel_ref }}" \
             https://github.com/indramccaslin/android_kernel_xiaomi_sm8150.git kernel
 
+      - name: Restore stock usr/ build files (missing on 17-ksun)
+        run: |
+          cd kernel
+          if [ ! -f usr/initramfs_data.S ] || [ ! -s usr/Makefile ]; then
+            echo "usr/ is incomplete on 17-ksun; restoring stock files from 17.0-stable-perf"
+            git fetch --depth=1 origin 17.0-stable-perf
+            git checkout FETCH_HEAD -- usr/
+          fi
+          test -f usr/initramfs_data.S
+          grep -q 'CONFIG_BLK_DEV_INITRD' usr/Makefile
+
       - name: Apply BBRv2 backport patches
         run: |
           cd kernel
