@@ -4,8 +4,8 @@ Date: Tue, 20 Jan 2026 06:11:54 +0700
 Subject: [PATCH] Backport BBRv2: Add dctp header needed BBRv2
 
 ---
- net/ipv4/tcp_dctcp.h | 44 ++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 44 insertions(+)
+ net/ipv4/tcp_dctcp.h | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
  create mode 100644 net/ipv4/tcp_dctcp.h
 
 diff --git a/net/ipv4/tcp_dctcp.h b/net/ipv4/tcp_dctcp.h
@@ -13,7 +13,7 @@ new file mode 100644
 index 000000000000..d69a77cbd0c7
 --- /dev/null
 +++ b/net/ipv4/tcp_dctcp.h
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,47 @@
 +#ifndef _TCP_DCTCP_H
 +#define _TCP_DCTCP_H
 +
