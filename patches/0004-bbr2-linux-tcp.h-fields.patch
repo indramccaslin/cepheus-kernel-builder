@@ -37,14 +37,6 @@
  
  /* RTT measurement */
  	u64	tcp_mstamp;	/* most recent packet received/sent */
-@@ -271,6 +277,7 @@
- 	u8	keepalive_probes; /* num of allowed keep alive probes	*/
- 	u32	reordering;	/* Packet reordering metric.		*/
- 	u32	snd_up;		/* Urgent pointer		*/
-+    u32	reord_seen;	/* number of data packet reordering events */
- 
- /*
-  *      Options received (usually on last packet, some only on SYN packets).
 @@ -308,6 +315,7 @@
  	u32	fackets_out;	/* FACK'd packets			*/
  
