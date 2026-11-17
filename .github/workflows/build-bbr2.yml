@@ -5,7 +5,7 @@ on:
     inputs:
       kernel_ref:
         description: 'Kernel source ref from indramccaslin/android_kernel_xiaomi_sm8150'
-        default: '17.0-stable-perf'
+        default: '17-ksun'
         required: true
 
 jobs:
@@ -34,7 +34,10 @@ jobs:
           test -f net/ipv4/tcp_dctcp.h
           grep -q "config TCP_CONG_BBR2" net/ipv4/Kconfig
           grep -q "tcp_bbr2.o" net/ipv4/Makefile
+          grep -q "KERNEL_SU_UAPI_VERSION = 5" drivers/kernelsu/include/uapi/supercall.h
+          grep -q "KSU_GIT_VERSION := 3155" drivers/kernelsu/Makefile
           echo "BBRv2 patches applied and verified"
+          echo "Base: stock 17-ksun (KernelSU-Next 33355 / UAPI 5)"
 
       - name: Install dependencies
         run: |

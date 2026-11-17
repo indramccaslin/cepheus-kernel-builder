@@ -1,19 +1,6 @@
-From f845f42ea77ae45125c3c90e1c81939ea47b4685 Mon Sep 17 00:00:00 2001
-From: ZeSan <zesakain@gmail.com>
-Date: Tue, 20 Jan 2026 16:56:06 +0700
-Subject: [PATCH] BACKPORT: tcp: add BBRv2 supports (struct member
- registration) from v5.13
-
-This backport introduces missing fields and struct member.
----
- include/linux/tcp.h | 44 ++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 38 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index fa76c1113529..78a1899c9019 100644
---- a/include/linux/tcp.h
-+++ b/include/linux/tcp.h
-@@ -215,31 +215,37 @@ struct tcp_sock {
+--- a/include/linux/tcp.h	2026-11-17 22:48:43.897998658 +0700
++++ b/include/linux/tcp.h	2026-11-17 22:49:01.247998652 +0700
+@@ -226,18 +226,22 @@
  		   reord:1;	 /* reordering detected */
  	} rack;
  	u16	advmss;		/* Advertised MSS			*/
@@ -40,12 +27,7 @@ index fa76c1113529..78a1899c9019 100644
  		repair      : 1,
  		frto        : 1;/* F-RTO (RFC5682) activated in CA_Loss */
  	u8	repair_queue;
- 	u8	save_syn:2,	/* Save headers of SYN packet */
- 		syn_data:1,	/* SYN includes data */
- 		syn_fastopen:1,	/* SYN includes Fast Open option */
- 		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
- 		syn_fastopen_ch:1, /* Active TFO re-enabling probe */
- 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
+@@ -250,7 +254,9 @@
  		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
  	u32	tlp_high_seq;	/* snd_nxt at the time of TLP */
  
@@ -55,7 +37,15 @@ index fa76c1113529..78a1899c9019 100644
  
  /* RTT measurement */
  	u64	tcp_mstamp;	/* most recent packet received/sent */
-@@ -297,6 +303,7 @@ struct tcp_sock {
+@@ -271,6 +277,7 @@
+ 	u8	keepalive_probes; /* num of allowed keep alive probes	*/
+ 	u32	reordering;	/* Packet reordering metric.		*/
+ 	u32	snd_up;		/* Urgent pointer		*/
++    u32	reord_seen;	/* number of data packet reordering events */
+ 
+ /*
+  *      Options received (usually on last packet, some only on SYN packets).
+@@ -308,6 +315,7 @@
  	u32	fackets_out;	/* FACK'd packets			*/
  
  	struct hrtimer	pacing_timer;
@@ -63,7 +53,7 @@ index fa76c1113529..78a1899c9019 100644
  
  	/* from STCP, retrans queue hinting */
  	struct sk_buff* lost_skb_hint;
-@@ -350,8 +357,14 @@ struct tcp_sock {
+@@ -361,8 +369,14 @@
  #define BPF_SOCK_OPS_TEST_FLAG(TP, ARG) 0
  #endif
  
@@ -78,9 +68,9 @@ index fa76c1113529..78a1899c9019 100644
  		u32	rtt_us;
  		u32	seq;
  		u64	time;
-@@ -373,6 +386,13 @@ struct tcp_sock {
- 			   * while socket was owned by user.
- 			   */
+@@ -387,6 +401,13 @@
+ 	bool	syn_smc;	/* SYN includes SMC */
+ #endif
  
 +#if IS_ENABLED(CONFIG_MPTCP)
 +	bool	is_mptcp;
@@ -92,18 +82,18 @@ index fa76c1113529..78a1899c9019 100644
  #ifdef CONFIG_TCP_MD5SIG
  /* TCP AF-Specific parts; only used by MD5 Signature support so far */
  	const struct tcp_sock_af_ops	*af_specific;
-@@ -388,6 +408,8 @@ struct tcp_sock {
+@@ -402,6 +423,8 @@
  	 */
- 	struct request_sock *fastopen_rsk;
- 	u32	*saved_syn;
+ 	struct request_sock __rcu *fastopen_rsk;
+ 	struct saved_syn *saved_syn;
 +/* Rerouting information */
 +	u16	ecn_rehash;	/* PLB triggered rehash attempts */
  };
  
  enum tsq_enum {
-@@ -479,4 +501,14 @@ static inline u16 tcp_mss_clamp(const struct tcp_sock *tp, u16 mss)
- int tcp_skb_shift(struct sk_buff *to, struct sk_buff *from, int pcount,
- 		  int shiftlen);
+@@ -493,6 +516,16 @@
+ 	 */
+ 	u16 user_mss = READ_ONCE(tp->rx_opt.user_mss);
  
 +void tcp_sock_set_cork(struct sock *sk, bool on);
 +int tcp_sock_set_keepcnt(struct sock *sk, int val);
@@ -115,4 +105,6 @@ index fa76c1113529..78a1899c9019 100644
 +int tcp_sock_set_syncnt(struct sock *sk, int val);
 +void tcp_sock_set_user_timeout(struct sock *sk, u32 val);
 +
- #endif	/* _LINUX_TCP_H */
+ 	return (user_mss && user_mss < mss) ? user_mss : mss;
+ }
+ 

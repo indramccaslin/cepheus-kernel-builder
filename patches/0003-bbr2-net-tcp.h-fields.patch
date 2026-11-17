@@ -1,21 +1,6 @@
-From 2dfb3c8d24e43c1e266f49b42e93ee59ad9bff98 Mon Sep 17 00:00:00 2001
-From: ZeSan <zesakain@gmail.com>
-Date: Tue, 20 Jan 2026 16:42:59 +0700
-Subject: [PATCH] BACKPORT: tcp: add BBRv2 and PLB supports fields to tcp.h
- from v5.13
-
-This backport introduces missing functions and
-struct members needed by BBRv2 and TCP_PLB, adapting them
-to the constraints of the 4.14 TCP implementation.
----
- include/net/tcp.h | 49 +++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 43 insertions(+), 6 deletions(-)
-
-diff --git a/include/net/tcp.h b/include/net/tcp.h
-index a8d2b85da7b5..780af5c6573c 100644
---- a/include/net/tcp.h
-+++ b/include/net/tcp.h
-@@ -838,17 +838,23 @@ struct tcp_skb_cb {
+--- a/include/net/tcp.h	2026-11-17 22:48:43.117998659 +0700
++++ b/include/net/tcp.h	2026-11-17 22:49:01.227998652 +0700
+@@ -857,17 +857,23 @@
  			unused:5;
  	__u32		ack_seq;	/* Sequence number ACK'd	*/
  	union {
@@ -45,9 +30,9 @@ index a8d2b85da7b5..780af5c6573c 100644
  		} tx;   /* only used for outgoing skbs */
  		union {
  			struct inet_skb_parm	h4;
-@@ -995,6 +1001,11 @@ enum tcp_ca_ack_event_flags {
- /* Requires ECN/ECT set on all packets */
+@@ -1015,6 +1021,11 @@
  #define TCP_CONG_NEEDS_ECN	0x2
+ #define TCP_CONG_MASK	(TCP_CONG_NON_RESTRICTED | TCP_CONG_NEEDS_ECN)
  
 +#define TCP_CONG_WANTS_CE_EVENTS	0x4
 +#define TCP_CONG_MASK	(TCP_CONG_NON_RESTRICTED | \
@@ -57,7 +42,7 @@ index a8d2b85da7b5..780af5c6573c 100644
  union tcp_cc_info;
  
  struct ack_sample {
-@@ -1014,7 +1025,10 @@ struct ack_sample {
+@@ -1034,7 +1045,10 @@
  struct rate_sample {
  	u64  prior_mstamp; /* starting timestamp for interval */
  	u32  prior_delivered;	/* tp->delivered at "prior_mstamp" */
@@ -68,7 +53,7 @@ index a8d2b85da7b5..780af5c6573c 100644
  	long interval_us;	/* time for tp->delivered to incr "delivered" */
  	long rtt_us;		/* RTT of last (S)ACKed packet (or -1) */
  	int  losses;		/* number of packets marked lost upon ACK */
-@@ -1022,6 +1036,8 @@ struct rate_sample {
+@@ -1042,6 +1056,8 @@
  	u32  prior_in_flight;	/* in flight before this ACK */
  	bool is_app_limited;	/* is sample from packet with bubble in pipe? */
  	bool is_retrans;	/* is sample from retransmission? */
@@ -77,20 +62,20 @@ index a8d2b85da7b5..780af5c6573c 100644
  };
  
  struct tcp_congestion_ops {
-@@ -1049,6 +1065,10 @@ struct tcp_congestion_ops {
+@@ -1069,6 +1085,10 @@
  	/* hook for packet ack accounting (optional) */
  	void (*pkts_acked)(struct sock *sk, const struct ack_sample *sample);
- 	/* suggest number of segments for each skb to transmit (optional) */
+ 	/* override sysctl_tcp_min_tso_segs */
 +    /* pick target number of segments per TSO/GSO skb (optional): */
 +	u32 (*tso_segs)(struct sock *sk, unsigned int mss_now);
 +	/* react to a specific lost skb (optional) */
 +	void (*skb_marked_lost)(struct sock *sk, const struct sk_buff *skb);
- 	u32 (*tso_segs_goal)(struct sock *sk);
+ 	u32 (*min_tso_segs)(struct sock *sk);
  	/* returns the multiplier used in tcp_sndbuf_expand (optional) */
  	u32 (*sndbuf_expand)(struct sock *sk);
-@@ -2004,6 +2024,23 @@ extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
- 			     u64 xmit_time);
+@@ -2028,6 +2048,23 @@
  extern void tcp_rack_reo_timeout(struct sock *sk);
+ extern void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs);
  
 +/* tcp_plb.c */
 +
