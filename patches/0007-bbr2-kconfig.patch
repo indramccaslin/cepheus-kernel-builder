@@ -1,18 +1,25 @@
+From 3c1d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d Mon Sep 17 00:00:00 2001
 From: indramccaslin <indramccaslin@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 21:25:00 +0700
 Subject: [PATCH] net: ipv4: add TCP_CONG_BBR2 config (BBRv2 backport)
 
 Add Kconfig entries for the experimental BBRv2 congestion control
 backport and allow it to be selected as the default TCP congestion
 control.
 
----
- net/ipv4/Kconfig | 22 +++++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+The previous version of this patch had wrong hunk line numbers, so the
+DEFAULT_BBR2 choice symbol and the "bbr2" default string were silently
+dropped by patch --fuzz; olddefconfig then picked DEFAULT_CUBIC instead.
+This version is generated against the actual 17.0-stable-perf Kconfig.
 
-diff --git a/net/ipv4/Kconfig b/net/ipv4/Kconfig
+---
+ net/ipv4/Kconfig | 23 +++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)
+
 --- a/net/ipv4/Kconfig
 +++ b/net/ipv4/Kconfig
-@@ -246,6 +246,23 @@ config TCP_CONG_BBR
+@@ -686,9 +686,26 @@
+ 	bufferbloat, policers, or AQM schemes that do not provide a delay
  	signal. It requires the fq ("Fair Queue") pacing packet scheduler.
  
 +config TCP_CONG_BBR2
@@ -22,14 +29,14 @@ diff --git a/net/ipv4/Kconfig b/net/ipv4/Kconfig
 +	---help---
 +	  BBRv2 is the next generation of BBR. It adds loss/ECN response and
 +	  better coexistence with Reno/CUBIC.
-+
++	
 +	  This is an experimental backport of the Google bbr v2alpha code
 +	  from Linux 5.13 to this 4.14 kernel. It is not upstream and has
 +	  not been exhaustively tested on mobile hardware.
-+
++	
 +	  BBRv2 REQUIRES the fq packet scheduler (CONFIG_NET_SCH_FQ) for
 +	  correct pacing. Do not enable it with pfifo_fast/fq_codel only.
-+
++	
 +	  If unsure, say N.
 +
  choice
@@ -39,7 +46,7 @@ diff --git a/net/ipv4/Kconfig b/net/ipv4/Kconfig
  	help
  	  Select the TCP congestion control that will be used by default
  	  for all connections.
-@@ -286,6 +303,9 @@ choice
+@@ -723,6 +740,9 @@
  	config DEFAULT_BBR
  		bool "BBR" if TCP_CONG_BBR=y
  
@@ -49,7 +56,8 @@ diff --git a/net/ipv4/Kconfig b/net/ipv4/Kconfig
  	config DEFAULT_RENO
  		bool "Reno"
  endchoice
-@@ -306,6 +326,7 @@ config DEFAULT_TCP_CONG
+@@ -747,6 +767,7 @@
+ 	default "dctcp" if DEFAULT_DCTCP
  	default "cdg" if DEFAULT_CDG
  	default "bbr" if DEFAULT_BBR
 +	default "bbr2" if DEFAULT_BBR2
