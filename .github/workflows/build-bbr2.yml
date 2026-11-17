@@ -64,7 +64,15 @@ jobs:
           grep -q "sm8150p-v2.dtb" arch/arm64/boot/dts/qcom/Makefile
           echo "Base DTBs set to 4 generic sm8150 variants (no overlays)"
 
+      - name: Cache Clang r584948
+        id: cache-clang
+        uses: actions/cache@v4
+        with:
+          path: clang
+          key: clang-r584948
+
       - name: Setup Clang r584948 (matches build-kernel.yml)
+        if: steps.cache-clang.outputs.cache-hit != 'true'
         run: |
           mkdir -p clang
           cd clang
