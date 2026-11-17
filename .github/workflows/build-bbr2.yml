@@ -43,7 +43,7 @@ jobs:
             git curl wget build-essential bc bison flex libssl-dev libelf-dev \
             libyaml-dev pkg-config python3 zip unzip cpio ccache rsync \
             device-tree-compiler \
-            binutils-aarch64-linux-gnu binutils-aarch64-linux-gnueabihf
+            binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
 
       - name: Download Neutron Clang
         run: |
