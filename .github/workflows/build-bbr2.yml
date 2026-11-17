@@ -34,7 +34,11 @@ jobs:
           test -f net/ipv4/tcp_dctcp.h
           grep -q "config TCP_CONG_BBR2" net/ipv4/Kconfig
           grep -q "tcp_bbr2.o" net/ipv4/Makefile
+          grep -q "KERNEL_SU_UAPI_VERSION = 5" drivers/kernelsu/include/uapi/supercall.h
+          grep -q "KSU_GIT_VERSION := 3155" drivers/kernelsu/Makefile
+          grep -q "KSU_GIT_TAG := v3.4.2" drivers/kernelsu/Makefile
           echo "BBRv2 patches applied and verified"
+          echo "KernelSU-Next driver: v3.4.2 (33355), UAPI 5"
 
       - name: Install dependencies
         run: |
