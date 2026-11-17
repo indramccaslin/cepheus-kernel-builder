@@ -1,0 +1,26 @@
+From 7f4a1c2b9d8e3f6a5b4c2d1e0f9a8b7c6d5e4f3a Mon Sep 17 00:00:00 2001
+From: indramccaslin <indramccaslin@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 20:40:00 +0700
+Subject: [PATCH] Backport BBRv2: enlarge ICSK CA private area
+
+BBRv2 keeps a 216-byte per-socket state, while 4.14 only reserves
+88 bytes in icsk_ca_priv. Enlarge it to 224 bytes, matching the
+upstream BBRv2 4.14 backport, so BUILD_BUG_ON in bbr_register passes.
+
+---
+ include/net/inet_connection_sock.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- a/include/net/inet_connection_sock.h
++++ b/include/net/inet_connection_sock.h
+@@ -142,8 +142,8 @@
+ 	} icsk_mtup;
+ 	u32			  icsk_user_timeout;
+ 
+-	u64			  icsk_ca_priv[88 / sizeof(u64)];
+-#define ICSK_CA_PRIV_SIZE      (11 * sizeof(u64))
++	u64			  icsk_ca_priv[224 / sizeof(u64)];
++#define ICSK_CA_PRIV_SIZE      (28 * sizeof(u64))
+ };
+ 
+ #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
