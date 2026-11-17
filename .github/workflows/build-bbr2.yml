@@ -1,0 +1,113 @@
+name: Build cepheus kernel 4.14.357 + BBRv2 (KernelSU-Next)
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_ref:
+        description: 'Kernel source ref from indramccaslin/android_kernel_xiaomi_sm8150'
+        default: '17-dev'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout builder repo (patches + config)
+        uses: actions/checkout@v4
+        with:
+          path: builder
+
+      - name: Clone kernel source (your fork)
+        run: |
+          git clone --depth=1 --branch "${{ inputs.kernel_ref }}" \
+            https://github.com/indramccaslin/android_kernel_xiaomi_sm8150.git kernel
+
+      - name: Apply BBRv2 backport patches
+        run: |
+          cd kernel
+          for p in ../builder/patches/0*.patch; do
+            echo "== applying $p =="
+            patch -p1 --fuzz=3 --no-backup-if-mismatch < "$p"
+          done
+          test -f net/ipv4/tcp_bbr2.c
+          test -f net/ipv4/tcp_dctcp.h
+          grep -q "config TCP_CONG_BBR2" net/ipv4/Kconfig
+          grep -q "tcp_bbr2.o" net/ipv4/Makefile
+          echo "BBRv2 patches applied and verified"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git curl wget build-essential bc bison flex libssl-dev libelf-dev \
+            libyaml-dev pkg-config python3 zip unzip cpio ccache rsync \
+            device-tree-compiler \
+            binutils-aarch64-linux-gnu binutils-aarch64-linux-gnueabihf
+
+      - name: Download Neutron Clang
+        run: |
+          mkdir -p "$HOME/tc/neutron-clang"
+          cd "$HOME/tc/neutron-clang"
+          curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
+          chmod +x antman
+          ./antman -S
+          ls bin | head
+
+      - name: Configure kernel (BBRv2 + FQ enabled)
+        run: |
+          cd kernel
+          mkdir -p out
+          cp ../builder/configs/cepheus-4.1-bbr2.config out/.config
+          scripts/config --file out/.config --set-str CONFIG_LOCALVERSION "-perf-bbr2"
+          scripts/config --file out/.config --disable CONFIG_LOCALVERSION_AUTO
+          scripts/config --file out/.config \
+            -e CONFIG_TCP_CONG_ADVANCED \
+            -e CONFIG_TCP_CONG_BBR \
+            -e CONFIG_TCP_CONG_BBR2 \
+            -e CONFIG_DEFAULT_BBR2 \
+            -e CONFIG_NET_SCH_FQ \
+            -e CONFIG_NET_SCH_DEFAULT \
+            -e CONFIG_DEFAULT_FQ
+          # CAF 4.14 + modern clang workarounds (same as your build-cepheus.yml)
+          sed -i 's/HOSTLDLIBS_dtc/HOSTLOADLIBES_dtc/' scripts/dtc/Makefile || true
+          sed -i 's#python2 $(srctree)/scripts/dtc/mkdtboimg.py#python3 $(srctree)/scripts/dtc/mkdtboimg.py#' scripts/Makefile.lib || true
+          curl -fsSL "https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT" | base64 -d > scripts/dtc/mkdtboimg.py
+          printf '\nKBUILD_CFLAGS += -Wno-error\n' >> Makefile
+          make O=out ARCH=arm64 olddefconfig
+          echo "== relevant config =="
+          grep -E "CONFIG_(LOCALVERSION|TCP_CONG|BBR|NET_SCH_FQ|NET_SCH_DEFAULT|DEFAULT_FQ|DEFAULT_TCP_CONG|KSU|SUSFS)" out/.config
+
+      - name: Build kernel
+        run: |
+          cd kernel
+          export PATH="$HOME/tc/neutron-clang/bin:$PATH"
+          export ARCH=arm64 SUBARCH=arm64
+          export LLVM=1
+          export KBUILD_BUILD_USER="cepheus"
+          export KBUILD_BUILD_HOST="github-actions"
+          dtc --version
+          make -j"$(nproc --all)" O=out ARCH=arm64 DTC=dtc \
+            CC=clang AR=llvm-ar LD=ld.lld NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            Image.gz-dtb
+          ls -l out/arch/arm64/boot/
+
+      - name: Package with AnyKernel3
+        run: |
+          git clone --depth=1 https://github.com/JoK3rLeE/AnyKernel3.git anykernel
+          rm -rf anykernel/.git*
+          cp kernel/out/arch/arm64/boot/Image.gz-dtb anykernel/
+          cd anykernel
+          zip -r9 "../cepheus-bbr2-$(date +%Y%m%d).zip" . -x "README*" "*.zip" ".git*"
+          cd ..
+          ls -l *.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cepheus-bbr2-kernel
+          path: |
+            cepheus-bbr2-*.zip
+            kernel/out/.config
+          if-no-files-found: error
