@@ -41,18 +41,49 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             git curl wget build-essential bc bison flex libssl-dev libelf-dev \
-            libyaml-dev pkg-config python3 zip unzip cpio ccache rsync \
-            device-tree-compiler \
+            libyaml-dev pkg-config python3 zip unzip ccache rsync \
+            xz-utils lz4 zstd device-tree-compiler \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
             binutils-aarch64-linux-gnu binutils-arm-linux-gnueabi
 
-      - name: Download Neutron Clang
+      - name: Select base DTBs (generic sm8150, like build-kernel.yml)
         run: |
-          mkdir -p "$HOME/tc/neutron-clang"
-          cd "$HOME/tc/neutron-clang"
-          curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
-          chmod +x antman
-          ./antman -S
-          ls bin | head
+          cd kernel
+          python3 - << 'EOF'
+          p = 'arch/arm64/boot/dts/qcom/Makefile'
+          src = open(p).read().splitlines(True)
+          start = next(i for i, l in enumerate(src) if l.startswith('ifeq ($(CONFIG_MACH_XIAOMI_SM8150),y)'))
+          end = next(i for i, l in enumerate(src) if l.startswith('endif # CONFIG_MACH_XIAOMI_SM8150'))
+          block = [
+              'ifeq ($(CONFIG_MACH_XIAOMI_SM8150),y)\n',
+              'dtb-$(CONFIG_ARCH_SM8150) += sm8150.dtb sm8150-v2.dtb sm8150p.dtb sm8150p-v2.dtb\n',
+              'endif # CONFIG_MACH_XIAOMI_SM8150\n',
+          ]
+          open(p, 'w').writelines(src[:start] + block + src[end + 1:])
+          EOF
+          grep -q "sm8150p-v2.dtb" arch/arm64/boot/dts/qcom/Makefile
+          echo "Base DTBs set to 4 generic sm8150 variants (no overlays)"
+
+      - name: Setup Clang r584948 (matches build-kernel.yml)
+        run: |
+          mkdir -p clang
+          cd clang
+          URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel/clang-r584948.tar.gz"
+          for i in $(seq 1 8); do
+            rm -f clang.tar.gz
+            if curl -fL --http1.1 --retry 5 --retry-delay 5 --retry-all-errors --max-time 1800 -o clang.tar.gz "$URL" && gzip -t clang.tar.gz 2>/dev/null; then
+              echo "archive OK (attempt $i)"
+              break
+            fi
+            echo "download failed/truncated, retrying (attempt $i)"
+            sleep 5
+          done
+          gzip -t clang.tar.gz
+          tar -xzf clang.tar.gz
+          rm -f clang.tar.gz
+          chmod +x bin/*
+          ./bin/clang --version
+          cd ..
 
       - name: Configure kernel (BBRv2 + FQ enabled)
         run: |
@@ -60,7 +91,6 @@ jobs:
           mkdir -p out
           cp ../builder/configs/cepheus-4.1-bbr2.config out/.config
           scripts/config --file out/.config --set-str CONFIG_LOCALVERSION "-perf-bbr2"
-          scripts/config --file out/.config --disable CONFIG_LOCALVERSION_AUTO
           scripts/config --file out/.config \
             -e CONFIG_TCP_CONG_ADVANCED \
             -e CONFIG_TCP_CONG_BBR \
@@ -68,12 +98,13 @@ jobs:
             -e CONFIG_DEFAULT_BBR2 \
             -e CONFIG_NET_SCH_FQ \
             -e CONFIG_NET_SCH_DEFAULT \
-            -e CONFIG_DEFAULT_FQ
-          # CAF 4.14 + modern clang workarounds (same as your build-cepheus.yml)
+            -e CONFIG_DEFAULT_FQ \
+            -d CONFIG_LOCALVERSION_AUTO \
+            -d CONFIG_MODULE_SIG \
+            -d CONFIG_MODULE_SIG_FORCE \
+            -d CONFIG_LTO \
+            -d CONFIG_LTO_CLANG
           sed -i 's/HOSTLDLIBS_dtc/HOSTLOADLIBES_dtc/' scripts/dtc/Makefile || true
-          sed -i 's#python2 $(srctree)/scripts/dtc/mkdtboimg.py#python3 $(srctree)/scripts/dtc/mkdtboimg.py#' scripts/Makefile.lib || true
-          curl -fsSL "https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT" | base64 -d > scripts/dtc/mkdtboimg.py
-          printf '\nKBUILD_CFLAGS += -Wno-error\n' >> Makefile
           make O=out ARCH=arm64 olddefconfig
           echo "== relevant config =="
           grep -E "CONFIG_(LOCALVERSION|TCP_CONG|BBR|NET_SCH_FQ|NET_SCH_DEFAULT|DEFAULT_FQ|DEFAULT_TCP_CONG|KSU|SUSFS)" out/.config
@@ -81,16 +112,21 @@ jobs:
       - name: Build kernel
         run: |
           cd kernel
-          export PATH="$HOME/tc/neutron-clang/bin:$PATH"
+          ulimit -H -s unlimited 2>/dev/null || sudo prlimit --stack=unlimited:unlimited --pid $$ 2>/dev/null || true
+          ulimit -s unlimited 2>/dev/null || true
+          export PATH="${{ github.workspace }}/clang/bin:$PATH"
           export ARCH=arm64 SUBARCH=arm64
-          export LLVM=1
+          export LLVM=1 LLVM_IAS=1
           export KBUILD_BUILD_USER="cepheus"
           export KBUILD_BUILD_HOST="github-actions"
-          dtc --version
-          make -j"$(nproc --all)" O=out ARCH=arm64 DTC=dtc \
-            CC=clang AR=llvm-ar LD=ld.lld NM=llvm-nm \
+          which clang
+          clang --version
+          MAKE_CMD=(make O=out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 \
+            CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu- AR=llvm-ar LD=ld.lld NM=llvm-nm \
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
-            Image.gz-dtb
+            KCFLAGS="-O2 -march=armv8.2-a+dotprod -mcpu=cortex-a76+crypto -Wno-error -Wno-implicit-enum-enum-cast -Wno-enum-conversion")
+          "${MAKE_CMD[@]}" -j$(nproc) Image.gz-dtb
           ls -l out/arch/arm64/boot/
 
       - name: Package with AnyKernel3
