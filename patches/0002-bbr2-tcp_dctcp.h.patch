@@ -4,8 +4,8 @@ Date: Tue, 20 Jan 2026 06:11:54 +0700
 Subject: [PATCH] Backport BBRv2: Add dctp header needed BBRv2
 
 ---
- net/ipv4/tcp_dctcp.h | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ net/ipv4/tcp_dctcp.h | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
  create mode 100644 net/ipv4/tcp_dctcp.h
 
 diff --git a/net/ipv4/tcp_dctcp.h b/net/ipv4/tcp_dctcp.h
@@ -13,9 +13,16 @@ new file mode 100644
 index 000000000000..d69a77cbd0c7
 --- /dev/null
 +++ b/net/ipv4/tcp_dctcp.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,44 @@
 +#ifndef _TCP_DCTCP_H
 +#define _TCP_DCTCP_H
++
++/* ICSK_ACK_NOW was introduced after 4.14. Use the closest available
++ * pending-ACK flag for this experimental backport.
++ */
++#ifndef ICSK_ACK_NOW
++#define ICSK_ACK_NOW ICSK_ACK_SCHED
++#endif
 +
 +static inline void dctcp_ece_ack_cwr(struct sock *sk, u32 ce_state)
 +{

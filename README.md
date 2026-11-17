@@ -6,7 +6,7 @@ source kernel dan build script milik sendiri.
 
 ## Sumber yang dipakai
 
-- Kernel source: `indramccaslin/android_kernel_xiaomi_sm8150` branch `17-dev`
+- Kernel source: `indramccaslin/android_kernel_xiaomi_sm8150` branch `17.0-stable-perf`
   - versi `4.14.357`
   - sudah punya `net/sched/sch_fq.c`
   - sudah punya `net/ipv4/tcp_bbr.c` (BBR v1)
@@ -42,7 +42,7 @@ configs/
 1. Copy isi folder ini ke repo `cepheus-kernel-builder` kamu.
 2. Commit & push.
 3. Buka **Actions → Build cepheus kernel 4.14.357 + BBRv2 → Run workflow**.
-4. `kernel_ref` biarkan `17-dev`.
+4. `kernel_ref` biarkan `17.0-stable-perf`.
 5. Setelah selesai, download artifact `cepheus-bbr2-kernel`, ekstrak
    `cepheus-bbr2-*.zip`, flash lewat fastboot/AnyKernel3:
    ```sh
@@ -91,4 +91,4 @@ Jangan lupa `chmod 755`.
 - Backup `boot.img` sebelum flash. Kalau bootloop, flash kembali boot.img lama.
 - Kalau build gagal karena `patch` conflict, cek log workflow. Kemungkinan
   besar konflik di `include/linux/tcp.h` atau `include/net/tcp.h`;
-  sesuaikan hunk dengan source branch `17-dev` yang terbaru.
+  sesuaikan hunk dengan source branch `17.0-stable-perf` yang terbaru.

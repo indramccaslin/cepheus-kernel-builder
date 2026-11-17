@@ -5,7 +5,7 @@ on:
     inputs:
       kernel_ref:
         description: 'Kernel source ref from indramccaslin/android_kernel_xiaomi_sm8150'
-        default: '17-dev'
+        default: '17.0-stable-perf'
         required: true
 
 jobs:
